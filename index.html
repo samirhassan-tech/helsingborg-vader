@@ -22,9 +22,9 @@
 <footer>Prognosdata: <a href="https://www.smhi.se/" target="_blank" rel="noopener">SMHI</a> · Data uppdateras automatiskt var 30:e minut. Prognoser kan ändras.</footer>
 </main>
 <script>
-const endpoint='https://opendata-download-metfcst.smhi.se/api/category/pmp3g/version/2/geotype/point/lon/12.6945/lat/56.0465/data.json';
+const endpoint='https://opendata-download-metfcst.smhi.se/api/category/snow1g/version/1/geotype/point/lon/12.6945/lat/56.0465/data.json';
 const $=id=>document.getElementById(id);
-const get=(item,name)=>item.parameters.find(p=>p.name===name)?.values?.[0];
+const get=(item,name)=>item.data?.[({t:'air_temperature',ws:'wind_speed',r:'relative_humidity',pmean:'mean_precipitation_intensity',Wsymb2:'symbol_code'})[name]] ?? null;
 const icon=(code)=>{if([1,2].includes(code))return '☀️';if([3,4].includes(code))return '🌤️';if([5,6,7].includes(code))return '☁️';if([8,9,10,18,19,20,21].includes(code))return '🌧️';if([11,12,13,14,15,16,17,22,23,24,25,26,27].includes(code))return '🌨️';return '🌥️'};
 const describe=(code)=>{if([1,2].includes(code))return 'Klart väder';if([3,4].includes(code))return 'Växlande molnighet';if([5,6,7].includes(code))return 'Molnigt';if([8,9,10,18,19,20,21].includes(code))return 'Risk för regn';if(code>=11)return 'Nederbörd';return 'Väderprognos'};
 const fmt=(n,d=1)=>Number.isFinite(n)?n.toLocaleString('sv-SE',{maximumFractionDigits:d,minimumFractionDigits:d}):'--';
@@ -34,15 +34,15 @@ $('status').textContent='Hämtar senaste prognosen från SMHI …';$('refresh').
 try{
 const response=await fetch(endpoint,{cache:'no-store'});if(!response.ok)throw new Error('HTTP '+response.status);
 const data=await response.json();const now=Date.now();
-const rows=data.timeSeries.filter(x=>new Date(x.validTime).getTime()>=now-60*60*1000);
+const rows=data.timeSeries.filter(x=>new Date((x.time || x.validTime)).getTime()>=now-60*60*1000);
 if(!rows.length)throw new Error('Ingen aktuell prognos tillgänglig');
 const current=rows[0],t=get(current,'t'),w=get(current,'ws'),h=get(current,'r'),rain=get(current,'pmean'),symbol=get(current,'Wsymb2');
 $('temp').textContent=fmt(t);$('wind').textContent=fmt(w)+' m/s';$('humidity').textContent=Number.isFinite(h)?Math.round(h)+' %':'-- %';$('rain').textContent=fmt(rain);
 $('icon').textContent=icon(symbol);$('description').textContent=describe(symbol);
-$('date').textContent=dateFmt(current.validTime,{weekday:'long',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'});
+$('date').textContent=dateFmt((current.time || current.validTime),{weekday:'long',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'});
 $('feels').textContent='SMHI:s prognos för vald tidpunkt';
-$('hours').replaceChildren(...rows.slice(0,6).map(row=>{const el=document.createElement('div');el.className='hour';const hour=document.createElement('div');hour.textContent=dateFmt(row.validTime,{hour:'2-digit',minute:'2-digit'});const emoji=document.createElement('div');emoji.className='emoji';emoji.textContent=icon(get(row,'Wsymb2'));const value=document.createElement('strong');value.textContent=fmt(get(row,'t'),0)+'°';el.append(hour,emoji,value);return el}));
-$('status').textContent='Uppdaterad '+dateFmt(new Date().toISOString(),{hour:'2-digit',minute:'2-digit'})+' · Prognostid '+dateFmt(current.validTime,{hour:'2-digit',minute:'2-digit'});
+$('hours').replaceChildren(...rows.slice(0,6).map(row=>{const el=document.createElement('div');el.className='hour';const hour=document.createElement('div');hour.textContent=dateFmt((row.time || row.validTime),{hour:'2-digit',minute:'2-digit'});const emoji=document.createElement('div');emoji.className='emoji';emoji.textContent=icon(get(row,'Wsymb2'));const value=document.createElement('strong');value.textContent=fmt(get(row,'t'),0)+'°';el.append(hour,emoji,value);return el}));
+$('status').textContent='Uppdaterad '+dateFmt(new Date().toISOString(),{hour:'2-digit',minute:'2-digit'})+' · Prognostid '+dateFmt((current.time || current.validTime),{hour:'2-digit',minute:'2-digit'});
 }catch(err){$('status').textContent='Kunde inte hämta väderdata just nu. Försök igen senare. ('+err.message+')';}
 finally{$('refresh').disabled=false}
 }
